@@ -1,0 +1,4 @@
+{
+  "extName": { "message": "MailVault" },
+  "extDescription": { "message": "Local-only email storage. Copies IMAP mail to local accounts with confirmation, keeps stars and tags, sorts by sender, then moves server copies to trash." }
+}

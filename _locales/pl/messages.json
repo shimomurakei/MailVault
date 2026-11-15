@@ -1,0 +1,4 @@
+{
+  "extName": { "message": "MailVault" },
+  "extDescription": { "message": "Poczta tylko lokalnie: kopiuje pocztę IMAP do kont lokalnych z potwierdzeniem, zachowuje gwiazdki i etykiety, sortuje według nadawców, a kopie serwerowe przenosi do kosza." }
+}
