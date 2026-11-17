@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
-  "version": "0.7.7",
+  "version": "0.7.9",
   "author": ".kei",
   "default_locale": "en",
   "browser_specific_settings": { "gecko": { "id": "tylko-lokalnie@key.local", "strict_min_version": "115.0" } },

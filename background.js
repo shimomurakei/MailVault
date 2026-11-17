@@ -23,7 +23,7 @@ const MAX_DZIENNIK = 5000;
 let ustawienia = { ...DOMYSLNE };
 let dziennik = [];
 let indeks = {};            // nazwa skrzynki -> { czas, unikalnych, lokalnie, brakuje, gwiazdki, etykiety, archiwum }
-let oczekujace = {};        // Message-ID -> czas skopiowania bez potwierdzenia
+let oczekujace = {};        // Message-ID -> { t: czas ostatniej próby kopii bez potwierdzenia, n: liczba prób }
 let pracuje = false;
 let przerwij = false;
 let zapisDziennika = null;
@@ -125,13 +125,27 @@ async function zbudujLokalne(konta) {
 const jestLokalnie = mid => !!mid && lokalneMid.has(mid);
 
 async function zapiszOczekujace() {
-  for (const [mid, t] of Object.entries(oczekujace)) {
-    if (lokalneMid.has(mid) || Date.now() - t > 7 * 24 * 3600 * 1000) delete oczekujace[mid];
+  for (const [mid, o] of Object.entries(oczekujace)) {
+    if (lokalneMid.has(mid) || Date.now() - proba(o).t > 7 * 24 * 3600 * 1000) delete oczekujace[mid];
   }
   try { await browser.storage.local.set({ oczekujace }); } catch (e) { /* bez znaczenia */ }
 }
 // kopia bez potwierdzenia: nie ponawiać przez 30 min (Thunderbird może ją jeszcze zapisywać), potem ponowić
-const czeka = mid => oczekujace[mid] && Date.now() - oczekujace[mid] < 30 * 60 * 1000;
+const proba = o => typeof o === "number" ? { t: o, n: 1 } : o;   // zapis ze starszych wersji: sama liczba
+// po nieudanej próbie czekać 30 min (Thunderbird może jeszcze zapisywać kopię); po 3 nieudanych: 24 h
+const czeka = mid => {
+  const o = oczekujace[mid];
+  if (!o) return false;
+  const { t, n } = proba(o);
+  return Date.now() - t < (n >= 3 ? 24 * 3600 * 1000 : 30 * 60 * 1000);
+};
+function zaznaczProbe(mid) {
+  const n = (oczekujace[mid] ? proba(oczekujace[mid]).n : 0) + 1;
+  oczekujace[mid] = { t: Date.now(), n };
+  return n;
+}
+// limit czasu kopii zależny od liczby wiadomości: 2 min + 20 s na wiadomość, najwyżej 30 min
+const limitKopii = n => Math.min(1800000, 120000 + 20000 * n);
 
 // czeka (do 60 s), aż skopiowane wiadomości pojawią się w folderze docelowym; zwraca Message-ID -> id lokalne
 async function potwierdzWszystkie(mids, cel) {
@@ -283,8 +297,9 @@ async function cyklSkrzynki(k, lok, u, licz) {
         const cel = await folderDocelowy(lok, g.typ, g.nad);
         if (!cel) { L.bledy++; await log(`${k.name}: brak folderu docelowego (${g.typ})`); continue; }
         const mids = g.wiad.map(m => m.headerMessageId);
-        for (const mid of mids) oczekujace[mid] = Date.now();
-        await B(browser.messages.copy(g.wiad.map(m => m.id), cel), 1800000, "messages.copy");
+        const proby = mids.map(zaznaczProbe);
+        if (proby.some(n => n === 3)) await log(`${k.name} ${f.path}: ${proby.filter(n => n === 3).length} wiad. bez potwierdzonej kopii po 3 próbach: następna próba za 24 h`);
+        await B(browser.messages.copy(g.wiad.map(m => m.id), cel), limitKopii(mids.length), "messages.copy");
         const ok = await potwierdzWszystkie(mids, cel);
         L.skopiowane += ok.size;
         for (const m of g.wiad) {
@@ -310,8 +325,8 @@ async function cyklSkrzynki(k, lok, u, licz) {
       if (jestLokalnie(mid) || !u.kopiuj || !zmiany || czeka(mid)) continue;
       try {
         const cel = await folderDocelowy(lok, "inbox", adresNadawcy(m.author));
-        oczekujace[mid] = Date.now();
-        await B(browser.messages.copy([m.id], cel), 1800000, "messages.copy");
+        if (zaznaczProbe(mid) === 3) await log(`${k.name} ${kosz.path}: wiad. bez potwierdzonej kopii po 3 próbach: następna próba za 24 h`);
+        await B(browser.messages.copy([m.id], cel), limitKopii(1), "messages.copy");
         const ok = await potwierdzWszystkie([mid], cel);
         if (ok.size) { L.skopiowane++; await znaczniki(m, ok.get(mid)); }
       } catch (e) {
@@ -466,10 +481,18 @@ browser.runtime.onMessage.addListener(async (msg) => {
       await browser.storage.local.set({ ustawienia });
       ustawZegar();
     }
-    if (msg.co === "cykl") cykl("ręcznie");
+    if (msg.co === "cykl") {
+      const uruchomiono = !pracuje;
+      cykl("ręcznie");
+      return { uruchomiono };
+    }
     return true;
   }
-  if (msg.co === "przerwij") { przerwij = true; if (pracuje) przerwanie.odrzuc(new Przerwano()); await log("żądanie przerwania"); return true; }
+  if (msg.co === "przerwij") {
+    const pracowal = pracuje;
+    if (pracuje) { przerwij = true; przerwanie.odrzuc(new Przerwano()); await log("żądanie przerwania"); }
+    return { pracowal };
+  }
   if (msg.co === "stan") return { pracuje, ustawienia, wersja: browser.runtime.getManifest().version, indeks };
   if (msg.co === "konta") {
     const konta = await browser.accounts.list(false);

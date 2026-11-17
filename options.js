@@ -31,6 +31,9 @@ const T = {
     podgladWl: "PODGLĄD WŁĄCZONY: cykl nic nie zmienia",
     kroki: "kroki", brakKrokow: "brak", skrzynka: "skrzynka", auto: "automatycznie", nie: "nie",
     pytWszystkie: "Uruchomić cykl na WSZYSTKICH skrzynkach?",
+    tak: "Tak, uruchom", nie: "Nie",
+    anulowano: "anulowano", zapisano: "ustawienia zapisane", uruchomiono: "cykl uruchomiony", juzTrwa: "cykl już trwa: najpierw Przerwij albo poczekaj na koniec",
+    przerwano: "przerywanie... (do kilku sekund)", nicDoPrzerwania: "żaden cykl nie trwa",
     pytKasuj: "UWAGA: zaznaczone kroki usuwają dane.\n\n6: oryginały na serwerze trafią do kosza serwera.\n7: wiadomości z kopią lokalną zostaną usunięte z kosza serwera NA STAŁE, lokalny Kosz zostanie opróżniony NA STAŁE.\n\nTego nie da się cofnąć. Kontynuować?",
   },
   en: {
@@ -61,6 +64,9 @@ const T = {
     podgladWl: "PREVIEW ON: the cycle changes nothing",
     kroki: "steps", brakKrokow: "none", skrzynka: "mailbox", auto: "automatic", nie: "no",
     pytWszystkie: "Run the cycle on ALL mailboxes?",
+    tak: "Yes, run", nie: "No",
+    anulowano: "cancelled", zapisano: "settings saved", uruchomiono: "cycle started", juzTrwa: "a cycle is already running: Stop it first or wait",
+    przerwano: "stopping... (a few seconds)", nicDoPrzerwania: "no cycle is running",
     pytKasuj: "WARNING: the selected steps delete data.\n\n6: server originals go to server trash.\n7: messages with a local copy are deleted PERMANENTLY from server trash, local Trash is emptied PERMANENTLY.\n\nThis cannot be undone. Continue?",
   },
 };
@@ -113,8 +119,6 @@ async function odswiez() {
   if (!st) return;
   const u = st.ustawienia || {};
   $("stan").textContent = st.pracuje ? t.pracuje : t.wolne;
-  $("stop").disabled = !st.pracuje;
-  $("teraz").disabled = st.pracuje;
   const kroki = KROKI.map((x, i) => u[x] ? i + 1 : null).filter(Boolean).join(", ") || t.brakKrokow;
   const auto = [u.autoStart ? "1" : "", u.autoCo ? `2 (${u.interwal} min)` : ""].filter(Boolean).join(" + ") || t.nie;
   $("aktywne").className = u.podglad ? "uwaga" : "opis";
@@ -128,25 +132,44 @@ function formularz() {
   for (const x of POLA) u[x] = $(x).checked;
   return u;
 }
-function potwierdz(u) {
-  if ((!u.konto || u.konto === "*") && !confirm(t.pytWszystkie)) return false;
-  if (!u.podglad && (u.kosz || u.oproznij) && !confirm(t.pytKasuj)) return false;
-  return true;
+// potwierdzenie na stronie (okna confirm() Thunderbird potrafi po cichu blokować)
+function zapytaj(tekst) {
+  return new Promise(rozstrzygnij => {
+    $("pytanieTekst").textContent = tekst;
+    $("pytanie").hidden = false;
+    $("pytanie").scrollIntoView({ block: "center" });
+    const koniec = wynik => { $("pytanie").hidden = true; $("tak").onclick = $("nie").onclick = null; rozstrzygnij(wynik); };
+    $("tak").onclick = () => koniec(true);
+    $("nie").onclick = () => koniec(false);
+  });
 }
+async function potwierdz(u) {
+  let tekst = "";
+  if (!u.konto || u.konto === "*") tekst += t.pytWszystkie + "\n\n";
+  if (!u.podglad && (u.kosz || u.oproznij)) tekst += t.pytKasuj;
+  return !tekst || await zapytaj(tekst.trim());
+}
+function komunikat(tekst) { $("komunikat").textContent = tekst; }
 
 $("zapisz").onclick = async () => {
   const u = formularz();
-  if ((u.autoStart || u.autoCo) && !potwierdz(u)) return;
+  if ((u.autoStart || u.autoCo) && !await potwierdz(u)) { komunikat(t.anulowano); return; }
   await browser.runtime.sendMessage({ co: "ustawienia", ustawienia: u });
+  komunikat(t.zapisano);
   await odswiez();
 };
 $("teraz").onclick = async () => {
   const u = formularz();
-  if (!potwierdz(u)) return;
-  await browser.runtime.sendMessage({ co: "cykl", ustawienia: u });
-  setTimeout(odswiez, 1500);
+  if (!await potwierdz(u)) { komunikat(t.anulowano); return; }
+  const w = await browser.runtime.sendMessage({ co: "cykl", ustawienia: u });
+  komunikat(w && w.uruchomiono ? t.uruchomiono : t.juzTrwa);
+  setTimeout(odswiez, 1000);
 };
-$("stop").onclick = async () => { await browser.runtime.sendMessage({ co: "przerwij" }); await odswiez(); };
+$("stop").onclick = async () => {
+  const w = await browser.runtime.sendMessage({ co: "przerwij" });
+  komunikat(w && w.pracowal ? t.przerwano : t.nicDoPrzerwania);
+  setTimeout(odswiez, 1000);
+};
 $("wyczysc").onclick = async () => { await browser.runtime.sendMessage({ co: "wyczysc" }); await odswiez(); };
 $("plik").onclick = () => {
   const blob = new Blob([$("dziennik").value + "\n"], { type: "text/plain" });
