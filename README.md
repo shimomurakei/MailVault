@@ -77,10 +77,7 @@ zip -r mailvault.xpi manifest.json background.js options.html options.js _locale
 
 ## Support
 
-If this project saves you time, you can support its development:
-
-- **GitHub Sponsors:** https://github.com/sponsors/shimomurakei
-- **Monero (XMR):**
+If this project saves you time, you can support its development with Monero (XMR):
 
 ```
 87SX973rjbP1E9FrrNXnsLHhMzhLfmCFyALnFrtQVVtgEuQyoxXhmbUE6woR3R9yyQFKM7M2SDvJ82cWJLcfWK6GPF4fzux
@@ -127,4 +124,4 @@ Instalacja: *Dodatki i motywy → koło zębate → Zainstaluj dodatek z pliku*.
 
 **Licencja:** GPL-3.0-or-later (tekst w `LICENSE`). Każda przeróbka musi zachować informację o autorze z linkiem https://github.com/shimomurakei/mailvault. Prośba, nie warunek licencji: jeśli budujesz na tym projekcie, daj znać w zgłoszeniu (issue) w repozytorium, to możemy współpracować.
 
-**Wsparcie:** GitHub Sponsors https://github.com/sponsors/shimomurakei albo Monero (XMR): `87SX973rjbP1E9FrrNXnsLHhMzhLfmCFyALnFrtQVVtgEuQyoxXhmbUE6woR3R9yyQFKM7M2SDvJ82cWJLcfWK6GPF4fzux` (kod QR w sekcji Support).
+**Wsparcie:** Monero (XMR): `87SX973rjbP1E9FrrNXnsLHhMzhLfmCFyALnFrtQVVtgEuQyoxXhmbUE6woR3R9yyQFKM7M2SDvJ82cWJLcfWK6GPF4fzux` (kod QR w sekcji Support).
