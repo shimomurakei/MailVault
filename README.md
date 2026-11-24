@@ -10,7 +10,7 @@
   |______|
 ```
 
-Thunderbird add-on (115 ESR+) that keeps mail **only locally**. For each IMAP mailbox `X`, it copies every message into a matching local account `X - lokalne`, verifies each copy, and only then moves the server original to the trash.
+Thunderbird add-on (115 ESR+) that keeps mail **only locally**. For each IMAP mailbox `X`, it copies every message into a local folder, verifies each copy, and only then moves the server original to the trash. The local folder is the account `X - lokalne` if it exists, otherwise the folder `X` in Local Folders, created on the first cycle.
 
 [Polski opis niżej](#polski)
 
@@ -54,7 +54,7 @@ The add-on runs a **cycle** for each selected mailbox in turn. Each step is a ch
 ## Requirements
 
 - Thunderbird 115 or newer.
-- For each IMAP account `X`, a local account named exactly `X - lokalne`, with the folders `Inbox`, `Sent`, `Drafts`, `Archives` and `Trash`.
+- Nothing to set up. Optionally, a separate local account named exactly `X - lokalne` for IMAP account `X`; without it the add-on uses `Local Folders/X`.
 
 ## Install
 
@@ -75,6 +75,19 @@ zip -r mailvault.xpi manifest.json background.js options.html options.js _locale
 | `messagesUpdate`, `messagesTags` | Copying stars, tags and read state to local copies |
 | `storage` | Settings, log, index |
 
+## Support
+
+If this project saves you time, you can support its development:
+
+- **GitHub Sponsors:** https://github.com/sponsors/shimomurakei
+- **Monero (XMR):**
+
+```
+87SX973rjbP1E9FrrNXnsLHhMzhLfmCFyALnFrtQVVtgEuQyoxXhmbUE6woR3R9yyQFKM7M2SDvJ82cWJLcfWK6GPF4fzux
+```
+
+<img src="docs/monero-qr.png" alt="Monero QR code" width="180">
+
 ## License
 
 MailVault — Copyright (C) 2026 .kei
@@ -90,7 +103,7 @@ Request (not a license condition): if you build on this project, please let me k
 
 ## Polski
 
-Dodatek do Thunderbirda (115 ESR+). Dla każdej skrzynki IMAP `X` kopiuje wszystkie wiadomości do konta lokalnego `X - lokalne` i potwierdza każdą kopię. Dopiero potem przenosi oryginał na serwerze do kosza.
+Dodatek do Thunderbirda (115 ESR+). Dla każdej skrzynki IMAP `X` kopiuje wszystkie wiadomości do konta lokalnego `X - lokalne`, a jeśli go nie ma, do folderu `X` w Folderach lokalnych, i potwierdza każdą kopię. Dopiero potem przenosi oryginał na serwerze do kosza.
 
 **Cykl** działa na każdej wybranej skrzynce osobno. Każdy krok można włączyć lub wyłączyć:
 
@@ -113,3 +126,5 @@ Dodatek do Thunderbirda (115 ESR+). Dla każdej skrzynki IMAP `X` kopiuje wszyst
 Instalacja: *Dodatki i motywy → koło zębate → Zainstaluj dodatek z pliku*.
 
 **Licencja:** GPL-3.0-or-later (tekst w `LICENSE`). Każda przeróbka musi zachować informację o autorze z linkiem https://github.com/shimomurakei/mailvault. Prośba, nie warunek licencji: jeśli budujesz na tym projekcie, daj znać w zgłoszeniu (issue) w repozytorium, to możemy współpracować.
+
+**Wsparcie:** GitHub Sponsors https://github.com/sponsors/shimomurakei albo Monero (XMR): `87SX973rjbP1E9FrrNXnsLHhMzhLfmCFyALnFrtQVVtgEuQyoxXhmbUE6woR3R9yyQFKM7M2SDvJ82cWJLcfWK6GPF4fzux` (kod QR w sekcji Support).

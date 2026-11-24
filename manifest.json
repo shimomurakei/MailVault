@@ -2,12 +2,46 @@
   "manifest_version": 2,
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
-  "version": "0.8.0",
+  "version": "0.8.2",
   "author": ".kei",
   "default_locale": "en",
-  "browser_specific_settings": { "gecko": { "id": "mailvault@shimomurakei", "strict_min_version": "115.0" } },
-  "background": { "scripts": ["background.js"] },
-  "options_ui": { "page": "options.html", "open_in_tab": true },
-  "browser_action": { "default_title": "__MSG_extName__" },
-  "permissions": ["accountsRead", "accountsFolders", "messagesRead", "messagesMove", "messagesDelete", "messagesUpdate", "messagesTags", "storage"]
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{359392b5-3954-47ae-baa8-294703c4519e}",
+      "strict_min_version": "115.0"
+    }
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "browser_action": {
+    "default_title": "__MSG_extName__",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "64": "icons/icon-64.png"
+    }
+  },
+  "permissions": [
+    "accountsRead",
+    "accountsFolders",
+    "messagesRead",
+    "messagesMove",
+    "messagesDelete",
+    "messagesUpdate",
+    "storage"
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "64": "icons/icon-64.png",
+    "128": "icons/icon-128.png"
+  }
 }

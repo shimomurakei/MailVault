@@ -172,7 +172,7 @@ async function znaczniki(oryg, lokalneId) {
 
 async function folderDocelowy(lok, typ, nadawca) {
   const wszystkieF = splaszcz(lok.folders);
-  const sciezka = p => wszystkieF.find(f => f.path === p);
+  const sciezka = p => wszystkieF.find(f => f.path === (lok.prefix || "") + p);
   if (typ === "sent") return sciezka("/Sent");
   if (typ === "drafts") return sciezka("/Drafts");
   if (typ === "templates") return sciezka("/Drafts/Szablony") || sciezka("/Drafts");
@@ -339,7 +339,7 @@ async function cyklSkrzynki(k, lok, u, licz) {
 
   // 4. sortowanie lokalnego Odebrane
   if (u.sortuj && zmiany) {
-    const lokInbox = splaszcz(lok.folders).find(f => f.path === "/Inbox");
+    const lokInbox = splaszcz(lok.folders).find(f => f.path === (lok.prefix || "") + "/Inbox");
     if (lokInbox) {
       const grupy = new Map();
       for await (const m of wszystkie(lokInbox)) dopisz(grupy, adresNadawcy(m.author), m.id);
@@ -406,6 +406,32 @@ async function cyklSkrzynki(k, lok, u, licz) {
   for (const x of Object.keys(L)) licz[x] = (licz[x] || 0) + L[x];
 }
 
+// konto lokalne skrzynki: osobne konto "X - lokalne", a gdy go nie ma, folder "X" w Folderach lokalnych
+// z podfolderami Inbox, Sent, Drafts, Archives, Trash (tworzone przy pierwszym cyklu bez podglądu)
+const PODSTAWOWE = ["Inbox", "Sent", "Drafts", "Archives", "Trash"];
+async function kontoLokalne(k, lokalne, konta, u) {
+  const osobne = lokalne.get(k.name.toLowerCase());
+  if (osobne) return { ...osobne, prefix: "" };
+  const lf = konta.find(a => a.type === "none" && !a.name.endsWith(" - lokalne"));
+  if (!lf) { await log(`${k.name}: brak Folderów lokalnych, pominięta`); return null; }
+  let x = (lf.folders || []).find(f => f.name === k.name);
+  if (!x || !PODSTAWOWE.every(n => (x.subFolders || []).some(f => f.name === n))) {
+    if (u.podglad) {
+      await log(`${k.name}: przy pierwszym cyklu bez podglądu powstanie folder ${lf.name}/${k.name} (Inbox, Sent, Drafts, Archives, Trash)`);
+      if (!x) return null;
+    } else {
+      if (!x) x = await B(browser.folders.create(lf, k.name), 120000, "folders.create");
+      const sub = await B(browser.folders.getSubFolders(x, false), 120000, "folders.getSubFolders");
+      for (const n of PODSTAWOWE) {
+        if (!sub.some(f => f.name === n)) await B(browser.folders.create(x, n), 120000, "folders.create");
+      }
+      await log(`${k.name}: utworzono folder ${lf.name}/${k.name}`);
+    }
+  }
+  const drzewo = await B(browser.folders.getSubFolders(x, true), 120000, "folders.getSubFolders");
+  return { ...lf, name: `${lf.name}/${k.name}`, folders: drzewo, prefix: x.path };
+}
+
 // ---------- cykl ----------
 async function cykl(powod) {
   if (pracuje) { await log(`pominięto (${powod}): poprzedni cykl trwa`); return; }
@@ -430,8 +456,8 @@ async function cykl(powod) {
     if (!wybrane.length) await log(`brak skrzynki "${u.konto}"`);
     for (const k of wybrane) {
       sprawdzPrzerwanie();
-      const lok = lokalne.get(k.name.toLowerCase());
-      if (!lok) { await log(`${k.name}: brak konta lokalnego, pominięta`); continue; }
+      const lok = await kontoLokalne(k, lokalne, konta, u);
+      if (!lok) continue;
       try { await cyklSkrzynki(k, lok, u, licz); }
       catch (e) {
         if (e instanceof Przerwano) throw e;
@@ -474,7 +500,8 @@ async function start() {
   if (ustawienia.autoStart) setTimeout(() => cykl("po starcie"), 3 * 60 * 1000);   // po synchronizacji IMAP przy starcie
 }
 
-browser.runtime.onMessage.addListener(async (msg) => {
+// obsługa wiadomości ze strony ustawień; zwraca obietnicę tylko dla znanych wiadomości
+async function obsluz(msg) {
   if (msg.co === "ustawienia" || msg.co === "cykl") {
     if (msg.ustawienia) {
       ustawienia = { ...DOMYSLNE, ...msg.ustawienia };
@@ -500,6 +527,12 @@ browser.runtime.onMessage.addListener(async (msg) => {
   }
   if (msg.co === "dziennik") return dziennik.join("\n");
   if (msg.co === "wyczysc") { dziennik = []; await browser.storage.local.set({ dziennik }); return true; }
+}
+const ZNANE = new Set(["ustawienia", "cykl", "przerwij", "stan", "konta", "dziennik", "wyczysc"]);
+// słuchacz synchroniczny: na nieznane wiadomości nie odpowiada (zwraca undefined), więc nie blokuje innych słuchaczy
+browser.runtime.onMessage.addListener((msg, sender) => {
+  if (sender.id !== browser.runtime.id || !msg || !ZNANE.has(msg.co)) return;
+  return obsluz(msg);
 });
 
 browser.browserAction.onClicked.addListener(() => browser.runtime.openOptionsPage());
